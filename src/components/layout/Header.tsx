@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Menu, Search, Bell, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 type HeaderProps = {
   onMenuClick: () => void;
@@ -9,6 +10,7 @@ type HeaderProps = {
 
 const Header = ({ onMenuClick }: HeaderProps) => {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,10 +36,20 @@ const Header = ({ onMenuClick }: HeaderProps) => {
           />
         </div>
         <nav className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/notifications')}
+            title="Notifications"
+          >
             <Bell className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/settings')}
+            title="Settings"
+          >
             <User className="h-5 w-5" />
           </Button>
         </nav>

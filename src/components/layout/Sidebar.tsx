@@ -1,4 +1,3 @@
-
 import { HomeIcon, Package2, BarChart3, Settings, Users } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,8 @@ type SidebarProps = {
 const menuItems = [
   { icon: HomeIcon, label: 'Dashboard', path: '/' },
   { icon: Package2, label: 'Inventory', path: '/inventory' },
-  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Users, label: 'Customers', path: '/customers' },
+  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 

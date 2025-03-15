@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "./components/layout/Layout";
 import Dashboard from "./components/dashboard/Dashboard";
 import Inventory from "./pages/Inventory";
+import Customers from "./pages/Customers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/customers" element={<Customers />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

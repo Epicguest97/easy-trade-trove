@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Package2, 
   Search, 
@@ -7,7 +7,8 @@ import {
   Edit, 
   Trash, 
   Filter, 
-  ArrowUpDown 
+  ArrowUpDown,
+  Loader2
 } from "lucide-react";
 import { 
   Table, 
@@ -27,77 +28,81 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
-// Mock data for inventory items
-const mockInventoryData = [
-  { 
-    id: 1, 
-    name: "Wireless Headphones", 
-    sku: "WH-001", 
-    category: "Electronics", 
-    price: 129.99, 
-    stock: 45, 
-    status: "In Stock" 
-  },
-  { 
-    id: 2, 
-    name: "Organic Cotton T-Shirt", 
-    sku: "AP-101", 
-    category: "Apparel", 
-    price: 24.99, 
-    stock: 78, 
-    status: "In Stock" 
-  },
-  { 
-    id: 3, 
-    name: "Stainless Water Bottle", 
-    sku: "HG-202", 
-    category: "Home Goods", 
-    price: 19.99, 
-    stock: 12, 
-    status: "Low Stock" 
-  },
-  { 
-    id: 4, 
-    name: "Wireless Charging Pad", 
-    sku: "WH-042", 
-    category: "Electronics", 
-    price: 34.99, 
-    stock: 0, 
-    status: "Out of Stock" 
-  },
-  { 
-    id: 5, 
-    name: "Leather Wallet", 
-    sku: "AC-305", 
-    category: "Accessories", 
-    price: 49.99, 
-    stock: 23, 
-    status: "In Stock" 
-  }
-];
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Product } from "@/types/inventory";
 
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [inventoryItems, setInventoryItems] = useState(mockInventoryData);
+  const [inventoryItems, setInventoryItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
+        
+        if (error) {
+          throw error;
+        }
+        
+        setInventoryItems(data || []);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('Failed to load products. Please try again later.');
+        toast({
+          title: "Error",
+          description: "Could not load inventory data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
   
   // Filter inventory items based on search term
   const filteredItems = inventoryItems.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case "In Stock":
+      case "active":
         return "bg-green-100 text-green-800";
-      case "Low Stock":
+      case "low_stock":
         return "bg-yellow-100 text-yellow-800";
-      case "Out of Stock":
+      case "out_of_stock":
         return "bg-red-100 text-red-800";
+      case "discontinued":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getFormattedStatus = (status: string) => {
+    switch(status) {
+      case "active":
+        return "In Stock";
+      case "low_stock":
+        return "Low Stock";
+      case "out_of_stock":
+        return "Out of Stock";
+      case "discontinued":
+        return "Discontinued";
+      default:
+        return status;
     }
   };
 
@@ -153,17 +158,32 @@ const Inventory = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        Loading inventory...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-red-500">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredItems.length > 0 ? (
                   filteredItems.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.sku}>
                       <TableCell className="font-medium">{item.sku}</TableCell>
-                      <TableCell className="max-w-[300px] truncate">{item.name}</TableCell>
+                      <TableCell className="max-w-[300px] truncate">{item.product_name}</TableCell>
                       <TableCell>{item.category}</TableCell>
                       <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{item.stock}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusColor(item.status)}>
-                          {item.status}
+                          {getFormattedStatus(item.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

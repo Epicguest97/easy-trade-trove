@@ -378,9 +378,9 @@ RETURNING *`, 'Add Product');
         throw new Error("Only SELECT queries are allowed for filtering");
       }
       
-      const { data, error } = await supabase.rpc('execute_sql', {
-        query_text: sqlFilter
-      });
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
       
       if (error) throw error;
       

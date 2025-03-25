@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Package2, 
@@ -31,12 +30,39 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types/inventory";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [inventoryItems, setInventoryItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    product_name: '',
+    sku: '',
+    category: '',
+    price: 0,
+    stock: 0,
+    status: 'active'
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
     const fetchProducts = async () => {
@@ -106,6 +132,71 @@ const Inventory = () => {
     }
   };
 
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newProduct.product_name || !newProduct.sku || !newProduct.category) {
+      toast({
+        title: "Missing Fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      const { data, error } = await supabase
+        .from('products')
+        .insert([newProduct as Product])
+        .select();
+      
+      if (error) throw error;
+      
+      setInventoryItems([...(data || []), ...inventoryItems]);
+      setShowAddModal(false);
+      setNewProduct({
+        product_name: '',
+        sku: '',
+        category: '',
+        price: 0,
+        stock: 0,
+        status: 'active'
+      });
+      
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
+      
+    } catch (err: any) {
+      console.error('Error adding product:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to add product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewProduct({
+      ...newProduct,
+      [name]: name === 'price' || name === 'stock' ? parseFloat(value) : value,
+    });
+  };
+
+  const handleStatusChange = (value: string) => {
+    setNewProduct({
+      ...newProduct,
+      status: value as "active" | "low_stock" | "out_of_stock" | "discontinued",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -115,10 +206,120 @@ const Inventory = () => {
             Manage your product inventory and stock levels
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
+        <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleAddProduct}>
+              <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+                <DialogDescription>
+                  Fill in the details to add a new product to your inventory
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="product_name" className="text-right">
+                    Name*
+                  </Label>
+                  <Input
+                    id="product_name"
+                    name="product_name"
+                    value={newProduct.product_name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="sku" className="text-right">
+                    SKU*
+                  </Label>
+                  <Input
+                    id="sku"
+                    name="sku"
+                    value={newProduct.sku}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">
+                    Category*
+                  </Label>
+                  <Input
+                    id="category"
+                    name="category"
+                    value={newProduct.category}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="price" className="text-right">
+                    Price
+                  </Label>
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    value={newProduct.price}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="stock" className="text-right">
+                    Stock
+                  </Label>
+                  <Input
+                    id="stock"
+                    name="stock"
+                    type="number"
+                    value={newProduct.stock}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={newProduct.status}
+                    onValueChange={handleStatusChange}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">In Stock</SelectItem>
+                      <SelectItem value="low_stock">Low Stock</SelectItem>
+                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                      <SelectItem value="discontinued">Discontinued</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Add Product
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>

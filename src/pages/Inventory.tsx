@@ -47,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import SqlQueryViewer from "@/components/SqlQueryViewer";
 
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,35 +64,52 @@ const Inventory = () => {
     status: 'active'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sqlQueries, setSqlQueries] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    query: string;
+    duration?: number;
+    source?: string;
+  }>>([]);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [sqlFilter, setSqlFilter] = useState<string>("SELECT * FROM products");
+  const [isExecutingFilter, setIsExecutingFilter] = useState(false);
   
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data, error } = await supabase
-          .from('products')
-          .select('*');
-        
-        if (error) {
-          throw error;
-        }
-        
-        setInventoryItems(data || []);
-      } catch (err) {
-        console.error('Error fetching products:', err);
-        setError('Failed to load products. Please try again later.');
-        toast({
-          title: "Error",
-          description: "Could not load inventory data",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+  // Extract fetchProducts from useEffect to make it reusable
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Log the query we're about to execute
+      logQuery('SELECT * FROM products', 'Fetch Products');
+      
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) {
+        throw error;
       }
-    };
-    
+      
+      setInventoryItems(data || []);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError('Failed to load products. Please try again later.');
+      toast({
+        title: "Error",
+        description: "Could not load inventory data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProducts();
   }, []);
   
@@ -147,6 +165,11 @@ const Inventory = () => {
     try {
       setIsSubmitting(true);
       
+      // Log the query
+      logQuery(`INSERT INTO products (product_name, sku, category, price, stock, status)
+VALUES ('${newProduct.product_name}', '${newProduct.sku}', '${newProduct.category}', ${newProduct.price}, ${newProduct.stock}, '${newProduct.status}')
+RETURNING *`, 'Add Product');
+      
       const { data, error } = await supabase
         .from('products')
         .insert([newProduct as Product])
@@ -195,6 +218,191 @@ const Inventory = () => {
       ...newProduct,
       status: value as "active" | "low_stock" | "out_of_stock" | "discontinued",
     });
+  };
+
+  const logQuery = (query: string, source: string) => {
+    setSqlQueries(prev => [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        query,
+        source,
+        duration: Math.floor(Math.random() * 50) + 5, // Mock duration - replace with actual timing
+      },
+      ...prev
+    ]);
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    try {
+      // Log the query
+      logQuery(`DELETE FROM products WHERE sku = '${product.sku}'`, 'Delete Product');
+      
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('sku', product.sku);  // Assuming SKU is unique
+      
+      if (error) throw error;
+      
+      // Update the local state to remove the deleted product
+      setInventoryItems(prevItems => prevItems.filter(item => item.sku !== product.sku));
+      
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+      
+    } catch (err: any) {
+      console.error('Error deleting product:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete product",
+        variant: "destructive",
+      });
+    } finally {
+      // Reset the productToDelete state
+      setProductToDelete(null);
+    }
+  };
+
+  // Add this new function near your other handler functions
+  const handleEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingProduct) return;
+    
+    if (!editingProduct.product_name || !editingProduct.sku || !editingProduct.category) {
+      toast({
+        title: "Missing Fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      // Log the query
+      logQuery(`UPDATE products
+  SET product_name = '${editingProduct.product_name}',
+      category = '${editingProduct.category}',
+      price = ${editingProduct.price},
+      stock = ${editingProduct.stock},
+      status = '${editingProduct.status}'
+  WHERE sku = '${editingProduct.sku}'`, 'Update Product');
+      
+      const { error } = await supabase
+        .from('products')
+        .update({
+          product_name: editingProduct.product_name,
+          category: editingProduct.category,
+          price: editingProduct.price,
+          stock: editingProduct.stock,
+          status: editingProduct.status,
+        })
+        .eq('sku', editingProduct.sku);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setInventoryItems(prevItems => 
+        prevItems.map(item => 
+          item.sku === editingProduct.sku ? editingProduct : item
+        )
+      );
+      
+      setShowEditModal(false);
+      setEditingProduct(null);
+      
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+      
+    } catch (err: any) {
+      console.error('Error updating product:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Add this helper function to handle edit input changes
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (!editingProduct) return;
+    
+    setEditingProduct({
+      ...editingProduct,
+      [name]: name === 'price' || name === 'stock' ? parseFloat(value) : value,
+    });
+  };
+
+  // Add this helper function to handle edit status changes
+  const handleEditStatusChange = (value: string) => {
+    if (!editingProduct) return;
+    
+    setEditingProduct({
+      ...editingProduct,
+      status: value as "active" | "low_stock" | "out_of_stock" | "discontinued",
+    });
+  };
+
+  // Add this function after your other handler functions
+  const executeCustomQuery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!sqlFilter?.trim()) {
+      toast({
+        title: "Invalid Query",
+        description: "Please enter a valid SQL query",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsExecutingFilter(true);
+      
+      // Log the query being executed
+      logQuery(sqlFilter, 'Custom Filter');
+      
+      // For safety, we'll only allow SELECT queries
+      if (!sqlFilter.toLowerCase().trim().startsWith('select')) {
+        throw new Error("Only SELECT queries are allowed for filtering");
+      }
+      
+      const { data, error } = await supabase.rpc('execute_sql', {
+        query_text: sqlFilter
+      });
+      
+      if (error) throw error;
+      
+      // Update the inventory items with the filtered results
+      setInventoryItems(data || []);
+      setShowFilterModal(false);
+      
+      toast({
+        title: "Query Executed",
+        description: `Found ${(data ?? []).length} results`,
+      });
+      
+    } catch (err: any) {
+      console.error('Error executing custom query:', err);
+      toast({
+        title: "Query Error",
+        description: err.message || "Failed to execute query",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExecutingFilter(false);
+    }
   };
 
   return (
@@ -339,9 +547,13 @@ const Inventory = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowFilterModal(true)}
+            >
               <Filter className="mr-2 h-4 w-4" />
-              Filter
+              SQL Filter
             </Button>
           </div>
 
@@ -389,10 +601,21 @@ const Inventory = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              setEditingProduct(item);
+                              setShowEditModal(true);
+                            }}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setProductToDelete(item)}
+                          >
                             <Trash className="h-4 w-4" />
                           </Button>
                         </div>
@@ -411,6 +634,222 @@ const Inventory = () => {
           </div>
         </CardContent>
       </Card>
+      
+      <SqlQueryViewer queries={sqlQueries} />
+
+      {productToDelete && (
+        <Dialog open={!!productToDelete} onOpenChange={() => setProductToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Product</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{productToDelete.product_name}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setProductToDelete(null)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeleteProduct(productToDelete)}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {editingProduct && (
+        <Dialog open={showEditModal} onOpenChange={(open) => {
+          setShowEditModal(open);
+          if (!open) setEditingProduct(null);
+        }}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleEditProduct}>
+              <DialogHeader>
+                <DialogTitle>Edit Product</DialogTitle>
+                <DialogDescription>
+                  Update the product details and click save when you're done
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_product_name" className="text-right">
+                    Name*
+                  </Label>
+                  <Input
+                    id="edit_product_name"
+                    name="product_name"
+                    value={editingProduct.product_name}
+                    onChange={handleEditInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_sku" className="text-right">
+                    SKU*
+                  </Label>
+                  <Input
+                    id="edit_sku"
+                    name="sku"
+                    value={editingProduct.sku}
+                    className="col-span-3"
+                    disabled
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_category" className="text-right">
+                    Category*
+                  </Label>
+                  <Input
+                    id="edit_category"
+                    name="category"
+                    value={editingProduct.category}
+                    onChange={handleEditInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_price" className="text-right">
+                    Price
+                  </Label>
+                  <Input
+                    id="edit_price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    value={editingProduct.price}
+                    onChange={handleEditInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_stock" className="text-right">
+                    Stock
+                  </Label>
+                  <Input
+                    id="edit_stock"
+                    name="stock"
+                    type="number"
+                    value={editingProduct.stock}
+                    onChange={handleEditInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={editingProduct.status}
+                    onValueChange={handleEditStatusChange}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">In Stock</SelectItem>
+                      <SelectItem value="low_stock">Low Stock</SelectItem>
+                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                      <SelectItem value="discontinued">Discontinued</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* SQL Filter Dialog */}
+      <Dialog open={showFilterModal} onOpenChange={setShowFilterModal}>
+        <DialogContent className="sm:max-w-[600px]">
+          <form onSubmit={executeCustomQuery}>
+            <DialogHeader>
+              <DialogTitle>Custom SQL Filter</DialogTitle>
+              <DialogDescription>
+                Write a SQL query to filter your inventory data
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="mb-2 flex justify-between items-center">
+                <Label htmlFor="sql-query">SQL Query</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSqlFilter("SELECT * FROM products")}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSqlFilter("SELECT * FROM products WHERE category = 'Electronics'")}
+                  >
+                    Electronics
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSqlFilter("SELECT * FROM products WHERE stock < 10")}
+                  >
+                    Low Stock
+                  </Button>
+                </div>
+              </div>
+              <textarea
+                id="sql-query"
+                className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Enter your SQL query..."
+                value={sqlFilter}
+                onChange={(e) => setSqlFilter(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Example: SELECT * FROM products WHERE category = 'Electronics' ORDER BY price DESC
+              </p>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  // Reset to show all products
+                  logQuery('SELECT * FROM products', 'Reset Filter');
+                  fetchProducts();
+                  setShowFilterModal(false);
+                }}
+              >
+                Reset Filter
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isExecutingFilter}
+              >
+                {isExecutingFilter && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Execute Query
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

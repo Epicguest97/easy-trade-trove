@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, RefreshCw, FileText, Truck, Package2 } from "lucide-react";
+import { PlusCircle, Search, RefreshCw, FileText, Truck } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -143,7 +142,7 @@ const Shipping = () => {
         `);
 
       if (statusFilter !== "all") {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as ShippingStatus);
       }
 
       if (searchQuery) {
@@ -151,6 +150,8 @@ const Shipping = () => {
       }
 
       const { data, error } = await query;
+      
+      setLastQuery(query.url.toString());
 
       if (error) {
         throw error;
@@ -163,11 +164,10 @@ const Shipping = () => {
           customer_name: shipment.orders.customers?.customer_name || 'Unknown',
           total_amount: shipment.orders.total_amount
         } : null,
-        payment_status: shipment.payments?.length > 0 ? shipment.payments[0].payment_status : 'pending'
+        payment_status: shipment.payments?.length > 0 ? shipment.payments[0].payment_status : 'pending' as PaymentStatus
       }));
 
       setShipments(formattedShipments);
-      setLastQuery(query.toURL());
     } catch (error) {
       console.error("Error fetching shipments:", error);
       toast({
@@ -311,8 +311,8 @@ const Shipping = () => {
     switch(status) {
       case 'processing': return "secondary";
       case 'shipped': return "default";
-      case 'delivered': return "success";
-      case 'delayed': return "warning";
+      case 'delivered': return "default";
+      case 'delayed': return "outline";
       case 'cancelled': return "destructive";
       default: return "outline";
     }
@@ -320,10 +320,10 @@ const Shipping = () => {
 
   const getPaymentStatusBadgeVariant = (status: PaymentStatus) => {
     switch(status) {
-      case 'completed': return "success";
+      case 'completed': return "default";
       case 'pending': return "secondary";
       case 'failed': return "destructive";
-      case 'refunded': return "warning";
+      case 'refunded': return "outline";
       default: return "outline";
     }
   };
@@ -549,7 +549,7 @@ const Shipping = () => {
                       </TableCell>
                       <TableCell>
                         {shipment.payment_status && (
-                          <Badge variant={getPaymentStatusBadgeVariant(shipment.payment_status as PaymentStatus)}>
+                          <Badge variant={getPaymentStatusBadgeVariant(shipment.payment_status)}>
                             {shipment.payment_status}
                           </Badge>
                         )}
@@ -630,7 +630,7 @@ const Shipping = () => {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Payment Status</h3>
                   {selectedShipment.payment_status && (
-                    <Badge variant={getPaymentStatusBadgeVariant(selectedShipment.payment_status as PaymentStatus)} className="mt-1">
+                    <Badge variant={getPaymentStatusBadgeVariant(selectedShipment.payment_status)} className="mt-1">
                       {selectedShipment.payment_status}
                     </Badge>
                   )}

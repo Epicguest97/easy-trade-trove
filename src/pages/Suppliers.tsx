@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +114,7 @@ const Suppliers = () => {
         `);
 
       if (statusFilter !== "all") {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as SupplierStatus);
       }
 
       if (searchQuery) {
@@ -123,6 +122,8 @@ const Suppliers = () => {
       }
 
       const { data, error } = await query;
+      
+      setLastQuery(query.url.toString());
 
       if (error) {
         throw error;
@@ -135,7 +136,6 @@ const Suppliers = () => {
       }));
 
       setSuppliers(formattedSuppliers);
-      setLastQuery(query.toURL());
     } catch (error) {
       console.error("Error fetching suppliers:", error);
       toast({
@@ -342,9 +342,9 @@ const Suppliers = () => {
 
   const getStatusBadgeVariant = (status: SupplierStatus) => {
     switch(status) {
-      case 'active': return "success";
+      case 'active': return "default";
       case 'inactive': return "destructive";
-      case 'pending_review': return "warning";
+      case 'pending_review': return "secondary";
       default: return "outline";
     }
   };
@@ -625,7 +625,7 @@ const Suppliers = () => {
                           <TableCell className="font-medium">{tx.transaction_id.substring(0, 8)}</TableCell>
                           <TableCell>{tx.product_name}</TableCell>
                           <TableCell>
-                            <Badge variant={tx.transaction_type === 'purchase' ? 'success' : 'secondary'}>
+                            <Badge variant={tx.transaction_type === 'purchase' ? 'default' : 'secondary'}>
                               {tx.transaction_type}
                             </Badge>
                           </TableCell>

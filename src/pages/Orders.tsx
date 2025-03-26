@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,7 +108,7 @@ const Orders = () => {
         `);
 
       if (statusFilter !== "all") {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as OrderStatus);
       }
 
       if (searchQuery) {
@@ -117,6 +116,8 @@ const Orders = () => {
       }
 
       const { data, error } = await query;
+      
+      setLastQuery(query.url.toString());
 
       if (error) {
         throw error;
@@ -132,7 +133,6 @@ const Orders = () => {
       }));
 
       setOrders(formattedOrders);
-      setLastQuery(query.toURL());
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast({
@@ -264,7 +264,7 @@ const Orders = () => {
       case 'pending': return "secondary";
       case 'processing': return "default";
       case 'shipped': return "outline";
-      case 'delivered': return "success";
+      case 'delivered': return "default";
       case 'cancelled': return "destructive";
       default: return "outline";
     }

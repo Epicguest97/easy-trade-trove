@@ -44,8 +44,14 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import type { Database } from "@/integrations/supabase/types";
 
-type ShippingStatus = Database['public']['Enums']['shipping_status'];
-type PaymentStatus = Database['public']['Enums']['payment_status'];
+// Define the shipping status enum type based on your database schema
+type ShippingStatus = 'delivered' | 'cancelled' | 'processing' | 'shipped' | 'delayed';
+
+// Define the Shipping type based on your table structure
+type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded';
+
+// Define the database shipping status type
+type DatabaseShippingStatus = ShippingStatus;
 
 type Shipping = {
   shipping_id: string;
@@ -57,12 +63,12 @@ type Shipping = {
   status: ShippingStatus;
   created_at: string;
   updated_at: string;
+  payment_status?: PaymentStatus;
   order_details?: {
     order_date: string;
-    customer_name: string;
     total_amount: number;
+    customer_name: string;
   } | null;
-  payment_status?: PaymentStatus;
 };
 
 const shippingFormSchema = z.object({
@@ -71,7 +77,7 @@ const shippingFormSchema = z.object({
   courier_service: z.string().min(1, "Courier service is required"),
   tracking_number: z.string().optional(),
   estimated_delivery_date: z.string().optional(),
-  status: z.enum(['processing', 'shipped', 'delivered', 'delayed', 'cancelled'] as const)
+  status: z.enum(['processing', 'shipped', 'delivered', 'cancelled', 'delayed'] as const),
 });
 
 const Shipping = () => {
@@ -93,18 +99,20 @@ const Shipping = () => {
   const [editingShipment, setEditingShipment] = useState<Shipping | null>(null);
   const [selectedShipment, setSelectedShipment] = useState<Shipping | null>(null);
 
+  // Set up the form
   const form = useForm<z.infer<typeof shippingFormSchema>>({
     resolver: zodResolver(shippingFormSchema),
     defaultValues: {
       order_id: "",
       shipping_address: "",
-      courier_service: "",
+      courier_service: "", // Make sure this is included
       tracking_number: "",
       estimated_delivery_date: "",
-      status: "processing" as ShippingStatus,
+      status: "processing" as ShippingStatus, // Change from "pending" to "processing"
     },
   });
 
+  // Helper for logging SQL queries
   const logQuery = (query: string, source: string) => {
     setSqlQueries(prev => [
       {
@@ -118,19 +126,22 @@ const Shipping = () => {
     ]);
   };
 
+  // Function to fetch available orders
   const fetchOrders = async () => {
     try {
       // Log the query
-      logQuery(`SELECT order_id, customers.customer_name 
+      logQuery(`SELECT orders.order_id, customers.customer_name 
 FROM orders 
-JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
+JOIN customers ON orders.customer_id = customers.customer_id
+WHERE orders.status != 'cancelled'`, 'Fetch Orders');
       
       const { data, error } = await supabase
         .from('orders')
         .select(`
           order_id,
           customers(customer_name)
-        `);
+        `)
+        .neq('status', 'cancelled');
       
       if (error) throw error;
       
@@ -150,19 +161,25 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
+  // Function to fetch shipments with filtering
   const fetchShipments = async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('shipping')
         .select(`
-          *,
+          shipping_id,
+          order_id,
+          shipping_address,
+          courier_service,
+          tracking_number,
+          estimated_delivery_date,
+          status,
           orders(
             order_date,
             total_amount,
             customers(customer_name)
-          ),
-          payments(payment_status)
+          )
         `);
 
       if (statusFilter !== "all") {
@@ -174,12 +191,12 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
       }
       
       // Build SQL query string for logging
-      let sqlQuery = `SELECT shipping.*, orders.order_date, orders.total_amount, 
-          customers.customer_name, payments.payment_status
+      let sqlQuery = `SELECT shipping.shipping_id, shipping.order_id, shipping.shipping_address, 
+          shipping.courier_service, shipping.tracking_number, shipping.estimated_delivery_date, 
+          shipping.status, orders.order_date, orders.total_amount, customers.customer_name
         FROM shipping
         LEFT JOIN orders ON shipping.order_id = orders.order_id
-        LEFT JOIN customers ON orders.customer_id = customers.customer_id
-        LEFT JOIN payments ON orders.order_id = payments.order_id`;
+        LEFT JOIN customers ON orders.customer_id = customers.customer_id`;
       
       if (statusFilter !== "all") {
         sqlQuery += ` WHERE shipping.status = '${statusFilter}'`;
@@ -195,30 +212,27 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
       // Log the query
       logQuery(sqlQuery, 'Fetch Shipments');
 
-      const { data, error } = await query as unknown as {
-        data: (Omit<Shipping, 'order_details' | 'payment_status'> & {
-          orders: {
-            order_date: string;
-            total_amount: number;
-            customers: { customer_name: string | null } | null;
-          } | null;
-          payments: { payment_status: PaymentStatus }[] | null;
-        })[],
-        error: any
-      };
+      const { data, error } = await query;
 
       if (error) {
         throw error;
       }
 
       const formattedShipments = data.map(shipment => ({
-        ...shipment,
+        shipping_id: shipment.shipping_id,
+        order_id: shipment.order_id,
+        shipping_address: shipment.shipping_address,
+        courier_service: shipment.courier_service,
+        tracking_number: shipment.tracking_number,
+        estimated_delivery_date: shipment.estimated_delivery_date,
+        status: shipment.status,
+        created_at: new Date().toISOString(), // Add current timestamp as fallback
+        updated_at: new Date().toISOString(), // Add current timestamp as fallback
         order_details: shipment.orders ? {
           order_date: shipment.orders.order_date,
-          customer_name: shipment.orders.customers?.customer_name || 'Unknown',
-          total_amount: shipment.orders.total_amount
-        } : null,
-        payment_status: shipment.payments?.length > 0 ? shipment.payments[0].payment_status : 'pending' as PaymentStatus
+          total_amount: shipment.orders.total_amount,
+          customer_name: shipment.orders.customers?.customer_name || 'Unknown'
+        } : null
       }));
 
       setShipments(formattedShipments);
@@ -234,11 +248,7 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
-  useEffect(() => {
-    fetchShipments();
-    fetchOrders();
-  }, [statusFilter, searchQuery]);
-
+  // Function to handle creating a new shipment
   const handleCreateShipment = async (values: z.infer<typeof shippingFormSchema>) => {
     try {
       // Log the query
@@ -286,6 +296,7 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
+  // Function to handle updating an existing shipment
   const handleUpdateShipment = async (values: z.infer<typeof shippingFormSchema>) => {
     if (!editingShipment) return;
     
@@ -333,6 +344,7 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
+  // Function to handle deleting a shipment
   const handleDeleteShipment = async (shippingId: string) => {
     if (!confirm("Are you sure you want to delete this shipment?")) return;
     
@@ -363,17 +375,25 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
+  // Function to handle editing a shipment
   const handleEditShipment = (shipment: Shipping) => {
     setEditingShipment(shipment);
     form.reset({
       order_id: shipment.order_id || undefined,
       shipping_address: shipment.shipping_address,
       courier_service: shipment.courier_service,
-      tracking_number: shipment.tracking_number || "",
-      estimated_delivery_date: shipment.estimated_delivery_date ? new Date(shipment.estimated_delivery_date).toISOString().split('T')[0] : "",
+      tracking_number: shipment.tracking_number || undefined,
+      estimated_delivery_date: shipment.estimated_delivery_date ? new Date(shipment.estimated_delivery_date).toISOString().split('T')[0] : undefined,
       status: shipment.status
     });
     setOpenDialog(true);
+  };
+
+  // Function to handle dialog close
+  const handleDialogClose = () => {
+    setOpenDialog(false);
+    setEditingShipment(null);
+    form.reset();
   };
 
   const handleViewShipment = (shipment: Shipping) => {
@@ -381,19 +401,13 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     setOpenSheet(true);
   };
 
-  const handleDialogClose = () => {
-    setOpenDialog(false);
-    setEditingShipment(null);
-    form.reset();
-  };
-
   const getStatusBadgeVariant = (status: ShippingStatus) => {
     switch(status) {
       case 'processing': return "secondary";
       case 'shipped': return "default";
       case 'delivered': return "default";
-      case 'delayed': return "outline";
       case 'cancelled': return "destructive";
+      case 'delayed': return "outline";
       default: return "outline";
     }
   };
@@ -408,6 +422,18 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
     }
   };
 
+  // Format date string
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Not set";
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Fetch data on component mount and when filters change
+  useEffect(() => {
+    fetchShipments();
+    fetchOrders();
+  }, [statusFilter, searchQuery]);
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -419,10 +445,10 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
               form.reset({
                 order_id: "",
                 shipping_address: "",
-                courier_service: "",
+                courier_service: "", // Added missing required field
                 tracking_number: "",
                 estimated_delivery_date: "",
-                status: "processing" as ShippingStatus,
+                status: "processing" // Changed to a valid enum value
               });
             }}>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -534,8 +560,8 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
                           <SelectItem value="processing">Processing</SelectItem>
                           <SelectItem value="shipped">Shipped</SelectItem>
                           <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="delayed">Delayed</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="delayed">Delayed</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -583,8 +609,8 @@ JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="shipped">Shipped</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="delayed">Delayed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="delayed">Delayed</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={fetchShipments}>

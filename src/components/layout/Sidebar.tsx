@@ -1,5 +1,5 @@
 
-import { HomeIcon, Package2, BarChart3, Settings, Users, ShoppingCart } from 'lucide-react';
+import { HomeIcon, Package2, BarChart3, Settings, Users, ShoppingCart, Truck, Factory } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
@@ -13,6 +13,8 @@ const menuItems = [
   { icon: HomeIcon, label: 'Dashboard', path: '/' },
   { icon: Package2, label: 'Inventory', path: '/inventory' },
   { icon: ShoppingCart, label: 'Orders', path: '/orders' },
+  { icon: Truck, label: 'Shipping', path: '/shipping' },
+  { icon: Factory, label: 'Suppliers', path: '/suppliers' },
   { icon: Users, label: 'Customers', path: '/customers' },
   { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Settings, label: 'Settings', path: '/settings' },

@@ -13,6 +13,8 @@ import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
+import Suppliers from "./pages/Suppliers";
+import Shipping from "./pages/Shipping";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,8 @@ const App = () => (
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/shipping" element={<Shipping />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

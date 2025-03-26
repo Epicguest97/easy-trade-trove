@@ -81,7 +81,13 @@ const Shipping = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [lastQuery, setLastQuery] = useState("");
+  const [sqlQueries, setSqlQueries] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    query: string;
+    duration?: number;
+    source?: string;
+  }>>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSheet, setOpenSheet] = useState(false);
   const [editingShipment, setEditingShipment] = useState<Shipping | null>(null);
@@ -99,8 +105,26 @@ const Shipping = () => {
     },
   });
 
+  const logQuery = (query: string, source: string) => {
+    setSqlQueries(prev => [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        query,
+        source,
+        duration: Math.floor(Math.random() * 50) + 5, // Mock duration
+      },
+      ...prev
+    ]);
+  };
+
   const fetchOrders = async () => {
     try {
+      // Log the query
+      logQuery(`SELECT order_id, customers.customer_name 
+FROM orders 
+JOIN customers ON orders.customer_id = customers.customer_id`, 'Fetch Orders');
+      
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -148,10 +172,40 @@ const Shipping = () => {
       if (searchQuery) {
         query = query.or(`shipping_address.ilike.%${searchQuery}%,tracking_number.ilike.%${searchQuery}%,courier_service.ilike.%${searchQuery}%`);
       }
-
-      const { data, error } = await query;
       
-      setLastQuery(query.url.toString());
+      // Build SQL query string for logging
+      let sqlQuery = `SELECT shipping.*, orders.order_date, orders.total_amount, 
+          customers.customer_name, payments.payment_status
+        FROM shipping
+        LEFT JOIN orders ON shipping.order_id = orders.order_id
+        LEFT JOIN customers ON orders.customer_id = customers.customer_id
+        LEFT JOIN payments ON orders.order_id = payments.order_id`;
+      
+      if (statusFilter !== "all") {
+        sqlQuery += ` WHERE shipping.status = '${statusFilter}'`;
+      }
+      
+      if (searchQuery) {
+        sqlQuery += statusFilter !== "all" ? " AND" : " WHERE";
+        sqlQuery += ` (shipping.shipping_address ILIKE '%${searchQuery}%' 
+            OR shipping.tracking_number ILIKE '%${searchQuery}%'
+            OR shipping.courier_service ILIKE '%${searchQuery}%')`;
+      }
+      
+      // Log the query
+      logQuery(sqlQuery, 'Fetch Shipments');
+
+      const { data, error } = await query as unknown as {
+        data: (Omit<Shipping, 'order_details' | 'payment_status'> & {
+          orders: {
+            order_date: string;
+            total_amount: number;
+            customers: { customer_name: string | null } | null;
+          } | null;
+          payments: { payment_status: PaymentStatus }[] | null;
+        })[],
+        error: any
+      };
 
       if (error) {
         throw error;
@@ -187,6 +241,19 @@ const Shipping = () => {
 
   const handleCreateShipment = async (values: z.infer<typeof shippingFormSchema>) => {
     try {
+      // Log the query
+      logQuery(`INSERT INTO shipping (
+        order_id, shipping_address, courier_service, tracking_number, 
+        estimated_delivery_date, status)
+      VALUES (
+        ${values.order_id ? `'${values.order_id}'` : 'NULL'}, 
+        '${values.shipping_address}', 
+        '${values.courier_service}', 
+        ${values.tracking_number ? `'${values.tracking_number}'` : 'NULL'}, 
+        ${values.estimated_delivery_date ? `'${values.estimated_delivery_date}'` : 'NULL'}, 
+        '${values.status}')
+      RETURNING *`, 'Create Shipment');
+      
       const { data, error } = await supabase
         .from('shipping')
         .insert({
@@ -223,6 +290,16 @@ const Shipping = () => {
     if (!editingShipment) return;
     
     try {
+      // Log the query
+      logQuery(`UPDATE shipping
+      SET order_id = ${values.order_id ? `'${values.order_id}'` : 'NULL'}, 
+          shipping_address = '${values.shipping_address}', 
+          courier_service = '${values.courier_service}', 
+          tracking_number = ${values.tracking_number ? `'${values.tracking_number}'` : 'NULL'}, 
+          estimated_delivery_date = ${values.estimated_delivery_date ? `'${values.estimated_delivery_date}'` : 'NULL'}, 
+          status = '${values.status}'
+      WHERE shipping_id = '${editingShipment.shipping_id}'`, 'Update Shipment');
+      
       const { error } = await supabase
         .from('shipping')
         .update({
@@ -260,6 +337,9 @@ const Shipping = () => {
     if (!confirm("Are you sure you want to delete this shipment?")) return;
     
     try {
+      // Log the query
+      logQuery(`DELETE FROM shipping WHERE shipping_id = '${shippingId}'`, 'Delete Shipment');
+      
       const { error } = await supabase
         .from('shipping')
         .delete()
@@ -574,17 +654,7 @@ const Shipping = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center">
-            <FileText className="mr-2 h-5 w-5" />
-            SQL Query
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SqlQueryViewer query={lastQuery} />
-        </CardContent>
-      </Card>
+      <SqlQueryViewer queries={sqlQueries} />
 
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
         <SheetContent className="sm:max-w-[640px]">

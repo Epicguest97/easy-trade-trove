@@ -61,7 +61,13 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [lastQuery, setLastQuery] = useState("");
+  const [sqlQueries, setSqlQueries] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    query: string;
+    duration?: number;
+    source?: string;
+  }>>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [customers, setCustomers] = useState<{ customer_id: string, customer_name: string }[]>([]);
@@ -75,7 +81,21 @@ const Orders = () => {
     },
   });
 
+  const logQuery = (query: string, source: string) => {
+    setSqlQueries(prev => [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        query,
+        source,
+        duration: Math.floor(Math.random() * 50) + 5, // Mock duration
+      },
+      ...prev
+    ]);
+  };
+
   const fetchCustomers = async () => {
+    logQuery('SELECT customer_id, customer_name FROM customers', 'Fetch Customers');
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -117,7 +137,23 @@ const Orders = () => {
 
       const { data, error } = await query;
       
-      setLastQuery(query.url.toString());
+      // Build SQL query string for logging
+      let sqlQuery = `SELECT orders.order_id, orders.customer_id, orders.order_date, 
+        orders.total_amount, orders.status, customers.customer_name 
+        FROM orders 
+        JOIN customers ON orders.customer_id = customers.customer_id`;
+
+      if (statusFilter !== "all") {
+        sqlQuery += ` WHERE orders.status = '${statusFilter}'`;
+      }
+
+      if (searchQuery) {
+        sqlQuery += statusFilter !== "all" ? " AND" : " WHERE";
+        sqlQuery += ` (orders.order_id LIKE '%${searchQuery}%' OR customers.customer_name LIKE '%${searchQuery}%')`;
+      }
+
+      // Log the query
+      logQuery(sqlQuery, 'Fetch Orders');
 
       if (error) {
         throw error;
@@ -151,6 +187,9 @@ const Orders = () => {
   }, [statusFilter, searchQuery]);
 
   const handleCreateOrder = async (values: z.infer<typeof formSchema>) => {
+    logQuery(`INSERT INTO orders (customer_id, total_amount, status, order_date)
+VALUES (${values.customer_id ? `'${values.customer_id}'` : 'NULL'}, ${values.total_amount}, '${values.status}', '${new Date().toISOString()}')
+RETURNING *`, 'Create Order');
     try {
       const { data, error } = await supabase
         .from('orders')
@@ -185,6 +224,11 @@ const Orders = () => {
   const handleUpdateOrder = async (values: z.infer<typeof formSchema>) => {
     if (!editingOrder) return;
     
+    logQuery(`UPDATE orders
+SET customer_id = ${values.customer_id ? `'${values.customer_id}'` : 'NULL'}, 
+    total_amount = ${values.total_amount}, 
+    status = '${values.status}'
+WHERE order_id = '${editingOrder.order_id}'`, 'Update Order');
     try {
       const { error } = await supabase
         .from('orders')
@@ -217,6 +261,7 @@ const Orders = () => {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
+    logQuery(`DELETE FROM orders WHERE order_id = '${orderId}'`, 'Delete Order');
     if (!confirm("Are you sure you want to delete this order?")) return;
     
     try {
@@ -466,17 +511,7 @@ const Orders = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center">
-            <FileText className="mr-2 h-5 w-5" />
-            SQL Query
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SqlQueryViewer query={lastQuery} />
-        </CardContent>
-      </Card>
+      <SqlQueryViewer queries={sqlQueries} />
     </div>
   );
 };

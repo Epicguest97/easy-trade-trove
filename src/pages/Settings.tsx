@@ -7,8 +7,42 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 const Settings = () => {
+  const {
+    isLoading,
+    saveAccountSettings,
+    saveCompanySettings,
+    changePassword,
+    saveNotificationSettings,
+    saveAppearanceSettings
+  } = useUserSettings();
+
+  // Account form state
+  const [accountForm, setAccountForm] = useState({
+    name: "John Doe",
+    email: "john.doe@example.com",
+    company: "Acme Inc.",
+    role: "Administrator"
+  });
+
+  // Company form state
+  const [companyForm, setCompanyForm] = useState({
+    companyName: "Acme Inc.",
+    website: "https://acme.com",
+    address: "123 Business St.",
+    phone: "+1 (555) 123-4567"
+  });
+
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+
+  // Notification preferences state
   const [notifications, setNotifications] = useState({
     emailSales: true,
     emailUpdates: false,
@@ -16,6 +50,70 @@ const Settings = () => {
     smsAlerts: false,
     desktopAlerts: true,
   });
+
+  // Appearance settings state
+  const [appearance, setAppearance] = useState({
+    theme: "light",
+    density: "default"
+  });
+
+  // Handle account form input changes
+  const handleAccountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setAccountForm(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Handle company form input changes
+  const handleCompanyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setCompanyForm(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Handle password form input changes
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setPasswordForm(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Handle form submissions
+  const handleAccountSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveAccountSettings(accountForm);
+  };
+
+  const handleCompanySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveCompanySettings(companyForm);
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert("Passwords don't match!");
+      return;
+    }
+    changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+  };
+
+  const handleNotificationsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveNotificationSettings(notifications);
+  };
+
+  const handleAppearanceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveAppearanceSettings(appearance.theme, appearance.density);
+  };
+
+  // Handle theme selection
+  const handleThemeSelect = (theme: string) => {
+    setAppearance(prev => ({ ...prev, theme }));
+  };
+
+  // Handle density selection
+  const handleDensitySelect = (density: string) => {
+    setAppearance(prev => ({ ...prev, density }));
+  };
 
   return (
     <div className="space-y-6">
@@ -35,173 +133,218 @@ const Settings = () => {
         </TabsList>
         
         <TabsContent value="account">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Information</CardTitle>
-              <CardDescription>
-                Update your account details and personal information.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" defaultValue="John Doe" />
+          <form onSubmit={handleAccountSubmit}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+                <CardDescription>
+                  Update your account details and personal information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input 
+                      id="name" 
+                      value={accountForm.name}
+                      onChange={handleAccountInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      value={accountForm.email}
+                      onChange={handleAccountInputChange}
+                      type="email" 
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" defaultValue="john.doe@example.com" type="email" />
+                
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company</Label>
+                    <Input 
+                      id="company" 
+                      value={accountForm.company}
+                      onChange={handleAccountInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Input 
+                      id="role" 
+                      value={accountForm.role}
+                      onChange={handleAccountInputChange}
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Input id="company" defaultValue="Acme Inc." />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input id="role" defaultValue="Administrator" />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button>Save Changes</Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
           
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>
-                Update your organization's details.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company-name">Company Name</Label>
-                  <Input id="company-name" defaultValue="Acme Inc." />
+          <form onSubmit={handleCompanySubmit} className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Company Information</CardTitle>
+                <CardDescription>
+                  Update your organization's details.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="company-name">Company Name</Label>
+                    <Input 
+                      id="companyName" 
+                      value={companyForm.companyName}
+                      onChange={handleCompanyInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input 
+                      id="website" 
+                      value={companyForm.website}
+                      onChange={handleCompanyInputChange}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-website">Website</Label>
-                  <Input id="company-website" defaultValue="https://acme.com" />
+                
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input 
+                      id="address" 
+                      value={companyForm.address}
+                      onChange={handleCompanyInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input 
+                      id="phone" 
+                      value={companyForm.phone}
+                      onChange={handleCompanyInputChange}
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="company-address">Address</Label>
-                  <Input id="company-address" defaultValue="123 Business St." />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-phone">Phone</Label>
-                  <Input id="company-phone" defaultValue="+1 (555) 123-4567" />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button>Save Changes</Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
         </TabsContent>
         
         <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>
-                Configure how you receive notifications and alerts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Email Notifications</h3>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Sales Reports</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive daily and weekly sales reports
-                    </p>
+          <form onSubmit={handleNotificationsSubmit}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>
+                  Configure how you receive notifications and alerts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Email Notifications</h3>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Sales Reports</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive daily and weekly sales reports
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={notifications.emailSales}
+                      onCheckedChange={(checked) => 
+                        setNotifications({ ...notifications, emailSales: checked })
+                      }
+                    />
                   </div>
-                  <Switch 
-                    checked={notifications.emailSales}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, emailSales: checked })
-                    }
-                  />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">System Updates</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified about system updates and maintenance
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={notifications.emailUpdates}
+                      onCheckedChange={(checked) => 
+                        setNotifications({ ...notifications, emailUpdates: checked })
+                      }
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Inventory Alerts</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive notifications about low inventory items
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={notifications.emailInventory}
+                      onCheckedChange={(checked) => 
+                        setNotifications({ ...notifications, emailInventory: checked })
+                      }
+                    />
+                  </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">System Updates</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified about system updates and maintenance
-                    </p>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Other Notifications</h3>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">SMS Alerts</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Receive critical alerts via text message
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={notifications.smsAlerts}
+                      onCheckedChange={(checked) => 
+                        setNotifications({ ...notifications, smsAlerts: checked })
+                      }
+                    />
                   </div>
-                  <Switch 
-                    checked={notifications.emailUpdates}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, emailUpdates: checked })
-                    }
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Inventory Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications about low inventory items
-                    </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Desktop Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Show desktop notifications while using the app
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={notifications.desktopAlerts}
+                      onCheckedChange={(checked) => 
+                        setNotifications({ ...notifications, desktopAlerts: checked })
+                      }
+                    />
                   </div>
-                  <Switch 
-                    checked={notifications.emailInventory}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, emailInventory: checked })
-                    }
-                  />
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Other Notifications</h3>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">SMS Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive critical alerts via text message
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={notifications.smsAlerts}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, smsAlerts: checked })
-                    }
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Desktop Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Show desktop notifications while using the app
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={notifications.desktopAlerts}
-                    onCheckedChange={(checked) => 
-                      setNotifications({ ...notifications, desktopAlerts: checked })
-                    }
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button>Save Preferences</Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Preferences"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
         </TabsContent>
         
         <TabsContent value="security">
@@ -213,24 +356,41 @@ const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              <form onSubmit={handlePasswordSubmit} className="space-y-2">
                 <h3 className="text-lg font-medium">Change Password</h3>
                 <div className="grid gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="current-password">Current Password</Label>
-                    <Input id="current-password" type="password" />
+                    <Input 
+                      id="currentPassword" 
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={handlePasswordInputChange}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="new-password">New Password</Label>
-                    <Input id="new-password" type="password" />
+                    <Input 
+                      id="newPassword" 
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={handlePasswordInputChange}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input id="confirm-password" type="password" />
+                    <Input 
+                      id="confirmPassword" 
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={handlePasswordInputChange}
+                    />
                   </div>
                 </div>
-                <Button className="mt-4">Update Password</Button>
-              </div>
+                <Button className="mt-4" type="submit" disabled={isLoading}>
+                  {isLoading ? "Updating..." : "Update Password"}
+                </Button>
+              </form>
               
               <Separator className="my-6" />
               
@@ -271,58 +431,92 @@ const Settings = () => {
         </TabsContent>
         
         <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance Settings</CardTitle>
-              <CardDescription>
-                Customize how the application looks and feels.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Theme</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="border rounded-md p-3 cursor-pointer bg-background hover:bg-accent">
-                    <div className="space-y-2 text-center">
-                      <div className="h-10 w-full bg-background border rounded-md"></div>
-                      <p className="text-sm font-medium">Light</p>
-                    </div>
-                  </div>
-                  <div className="border rounded-md p-3 cursor-pointer bg-background hover:bg-accent">
-                    <div className="space-y-2 text-center">
-                      <div className="h-10 w-full bg-slate-950 border rounded-md"></div>
-                      <p className="text-sm font-medium">Dark</p>
-                    </div>
-                  </div>
-                  <div className="border rounded-md p-3 cursor-pointer bg-background hover:bg-accent">
-                    <div className="space-y-2 text-center">
-                      <div className="h-10 w-full bg-background border rounded-md relative">
-                        <div className="absolute inset-y-0 right-0 w-1/2 bg-slate-950 rounded-r-md"></div>
+          <form onSubmit={handleAppearanceSubmit}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance Settings</CardTitle>
+                <CardDescription>
+                  Customize how the application looks and feels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Theme</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div 
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'light' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => handleThemeSelect('light')}
+                    >
+                      <div className="space-y-2 text-center">
+                        <div className="h-10 w-full bg-background border rounded-md"></div>
+                        <p className="text-sm font-medium">Light</p>
                       </div>
-                      <p className="text-sm font-medium">System</p>
+                    </div>
+                    <div 
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'dark' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => handleThemeSelect('dark')}
+                    >
+                      <div className="space-y-2 text-center">
+                        <div className="h-10 w-full bg-slate-950 border rounded-md"></div>
+                        <p className="text-sm font-medium">Dark</p>
+                      </div>
+                    </div>
+                    <div 
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'system' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => handleThemeSelect('system')}
+                    >
+                      <div className="space-y-2 text-center">
+                        <div className="h-10 w-full bg-background border rounded-md relative">
+                          <div className="absolute inset-y-0 right-0 w-1/2 bg-slate-950 rounded-r-md"></div>
+                        </div>
+                        <p className="text-sm font-medium">System</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Density</h3>
-                <p className="text-sm text-muted-foreground">
-                  Adjust the density of the user interface
-                </p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <Button variant="outline" size="sm">Compact</Button>
-                  <Button variant="outline" size="sm">Default</Button>
-                  <Button variant="outline" size="sm">Comfortable</Button>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Density</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Adjust the density of the user interface
+                  </p>
+                  <div className="flex items-center space-x-4 mt-2">
+                    <Button 
+                      type="button"
+                      variant={appearance.density === 'compact' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => handleDensitySelect('compact')}
+                    >
+                      Compact
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant={appearance.density === 'default' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => handleDensitySelect('default')}
+                    >
+                      Default
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant={appearance.density === 'comfortable' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => handleDensitySelect('comfortable')}
+                    >
+                      Comfortable
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button>Save Preferences</Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Preferences"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
         </TabsContent>
       </Tabs>
     </div>

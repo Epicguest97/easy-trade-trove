@@ -1,4 +1,5 @@
-import { HomeIcon, Package2, BarChart3, Settings, Users } from 'lucide-react';
+
+import { HomeIcon, Package2, BarChart3, Settings, Users, ShoppingCart } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
@@ -11,6 +12,7 @@ type SidebarProps = {
 const menuItems = [
   { icon: HomeIcon, label: 'Dashboard', path: '/' },
   { icon: Package2, label: 'Inventory', path: '/inventory' },
+  { icon: ShoppingCart, label: 'Orders', path: '/orders' },
   { icon: Users, label: 'Customers', path: '/customers' },
   { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Settings, label: 'Settings', path: '/settings' },

@@ -551,12 +551,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activities: {
+        Row: {
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          page: string | null
+          session_id: string
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_data: Json
+          event_type: string
+          id?: string
+          page?: string | null
+          session_id: string
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          page?: string | null
+          session_id?: string
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      execute_sql: {
+        Args: {
+          query_text: string
+        }
+        Returns: Json[]
+      }
     }
     Enums: {
       customer_status: "active" | "inactive" | "blocked"

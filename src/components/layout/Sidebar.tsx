@@ -16,7 +16,6 @@ const menuItems = [
   { icon: Truck, label: 'Shipping', path: '/shipping' },
   { icon: Factory, label: 'Suppliers', path: '/suppliers' },
   { icon: Users, label: 'Customers', path: '/customers' },
-  { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 

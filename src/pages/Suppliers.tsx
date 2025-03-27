@@ -4,10 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import SqlQueryViewer from "@/components/SqlQueryViewer";
 import { useQuery } from "@tanstack/react-query";
 
-// Fix for the url property error on line 126
-// Change from:
-// setSqlQuery(query.url.toString());
-// To:
 const Suppliers = () => {
   const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM suppliers');
 
@@ -20,12 +16,8 @@ const Suppliers = () => {
 
       if (error) throw error;
       
-      // Update SQL query for the viewer
-      const query = supabase
-        .from("suppliers")
-        .select("*");
-      
-      setSqlQuery(query.toSql ? query.toSql() : 'SELECT * FROM suppliers');
+      // Instead of using the non-existent toSql method, just update with a static query string
+      setSqlQuery('SELECT * FROM suppliers');
       
       return data;
     },

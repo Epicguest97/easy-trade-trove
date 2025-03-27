@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +24,11 @@ export const useUserSettings = () => {
         .update({
           name: settings.name,
           email: settings.email,
-          // Other fields would be updated here
+          // Store additional data in contact field as JSON
+          contact: JSON.stringify({
+            company: settings.company,
+            role: settings.role
+          })
         })
         .eq('admin_id', 'current-user-id'); // In a real app, this would be the actual user ID
       
@@ -50,15 +55,16 @@ export const useUserSettings = () => {
   const saveCompanySettings = async (settings: CompanySettings) => {
     setIsLoading(true);
     try {
-      // In a real application, this would update a company profile table
-      // Since we can't use RPC that doesn't exist, let's use a regular update
+      // Store company info in the contact field as JSON
       const { error } = await supabase
-        .from('admins')  // Assuming we store company info in admins table
+        .from('admins')
         .update({
-          company_name: settings.companyName,
-          website: settings.website,
-          address: settings.address,
-          phone: settings.phone,
+          contact: JSON.stringify({
+            companyName: settings.companyName,
+            website: settings.website,
+            address: settings.address,
+            phone: settings.phone,
+          })
         })
         .eq('admin_id', 'current-user-id');
       
@@ -115,14 +121,15 @@ export const useUserSettings = () => {
   const saveNotificationSettings = async (settings: UserSettings['notifications']) => {
     setIsLoading(true);
     try {
-      // In a real application, this would update a user preferences table
+      // Store notification preferences in contact field as JSON
       console.log("Notification settings:", settings);
       
-      // Simulating an update to user settings
       const { error } = await supabase
         .from('admins')
         .update({
-          notification_preferences: settings
+          contact: JSON.stringify({
+            notifications: settings
+          })
         })
         .eq('admin_id', 'current-user-id');
       
@@ -149,15 +156,16 @@ export const useUserSettings = () => {
   const saveAppearanceSettings = async (theme: string, density: string) => {
     setIsLoading(true);
     try {
-      // In a real application, this would update a user preferences table
+      // Store appearance settings in contact field as JSON
       console.log("Appearance settings:", { theme, density });
       
-      // Simulating an update to user settings
       const { error } = await supabase
         .from('admins')
         .update({
-          theme_preference: theme,
-          density_preference: density
+          contact: JSON.stringify({
+            theme: theme,
+            density: density
+          })
         })
         .eq('admin_id', 'current-user-id');
       

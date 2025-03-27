@@ -16,12 +16,8 @@ const Shipping = () => {
 
       if (error) throw error;
       
-      // Update SQL query for the viewer
-      const query = supabase
-        .from("shipping")
-        .select("*, orders(order_id)");
-      
-      setSqlQuery(query.toSql ? query.toSql() : 'SELECT * FROM shipping');
+      // Instead of using the non-existent toSql method, just update with a static query string
+      setSqlQuery('SELECT shipping.*, orders.order_id FROM shipping LEFT JOIN orders ON shipping.order_id = orders.order_id');
       
       return data;
     },
@@ -66,7 +62,7 @@ const Shipping = () => {
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                         ${shipment.status === 'delivered' ? 'bg-green-100 text-green-800' : 
                           shipment.status === 'processing' ? 'bg-yellow-100 text-yellow-800' : 
-                          shipment.status === 'transit' ? 'bg-blue-100 text-blue-800' : 
+                          shipment.status === 'shipped' ? 'bg-blue-100 text-blue-800' : 
                           'bg-gray-100 text-gray-800'}`}>
                         {shipment.status}
                       </span>

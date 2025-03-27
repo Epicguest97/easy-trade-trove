@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SqlQueryViewer from "@/components/SqlQueryViewer";
@@ -15,11 +16,8 @@ const Orders = () => {
 
       if (error) throw error;
       
-      const query = supabase
-        .from("orders")
-        .select("*, customers(customer_name)");
-      
-      setSqlQuery(query.toSql ? query.toSql() : 'SELECT * FROM orders');
+      // Instead of using the non-existent toSql method, just update with a static query string
+      setSqlQuery('SELECT orders.*, customers.customer_name FROM orders LEFT JOIN customers ON orders.customer_id = customers.customer_id');
       
       return data;
     },
@@ -57,7 +55,7 @@ const Orders = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.total_amount}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        ${order.status === 'delivered' ? 'bg-green-100 text-green-800' : 
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                           order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
                           'bg-blue-100 text-blue-800'}`}>

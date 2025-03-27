@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SqlQueryViewer from "@/components/SqlQueryViewer";
@@ -164,13 +163,44 @@ const Shipping = () => {
     try {
       setIsSubmitting(true);
       
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlInsertQuery = `
+INSERT INTO shipping (
+  tracking_number, order_id, courier_service, 
+  shipping_address, status, estimated_delivery_date
+) VALUES (
+  ${newShipment.tracking_number ? `'${newShipment.tracking_number}'` : 'NULL'},
+  ${newShipment.order_id ? `'${newShipment.order_id}'` : 'NULL'},
+  '${newShipment.courier_service}',
+  '${newShipment.shipping_address}',
+  '${newShipment.status}',
+  ${newShipment.estimated_delivery_date ? `'${newShipment.estimated_delivery_date}'` : 'NULL'}
+) RETURNING *`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlInsertQuery);
+      
+      // Add the shipment to the database
+      const { data, error } = await supabase
+        .from('shipping')
+        .insert({
+          tracking_number: newShipment.tracking_number || null,
+          order_id: newShipment.order_id || null,
+          courier_service: newShipment.courier_service,
+          shipping_address: newShipment.shipping_address,
+          status: newShipment.status as "processing" | "shipped" | "delivered" | "cancelled" | "delayed",
+          estimated_delivery_date: newShipment.estimated_delivery_date || null
+        })
+        .select();
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Shipment added successfully",
       });
       
+      // Close modal and reset form
       setShowAddModal(false);
       setNewShipment({
         tracking_number: '',
@@ -180,6 +210,9 @@ const Shipping = () => {
         status: 'processing',
         estimated_delivery_date: ''
       });
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error adding shipment:', err);
@@ -210,15 +243,46 @@ const Shipping = () => {
     try {
       setIsSubmitting(true);
       
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlUpdateQuery = `
+UPDATE shipping
+SET tracking_number = ${editingShipment.tracking_number ? `'${editingShipment.tracking_number}'` : 'NULL'},
+    courier_service = '${editingShipment.courier_service}',
+    shipping_address = '${editingShipment.shipping_address}',
+    status = '${editingShipment.status}',
+    estimated_delivery_date = ${editingShipment.estimated_delivery_date ? `'${editingShipment.estimated_delivery_date}'` : 'NULL'}
+WHERE shipping_id = '${editingShipment.shipping_id}'
+RETURNING *`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlUpdateQuery);
+      
+      // Update the shipment in the database
+      const { data, error } = await supabase
+        .from('shipping')
+        .update({
+          tracking_number: editingShipment.tracking_number,
+          courier_service: editingShipment.courier_service,
+          shipping_address: editingShipment.shipping_address,
+          status: editingShipment.status,
+          estimated_delivery_date: editingShipment.estimated_delivery_date
+        })
+        .eq('shipping_id', editingShipment.shipping_id)
+        .select();
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Shipment updated successfully",
       });
       
+      // Close modal and reset form
       setShowEditModal(false);
       setEditingShipment(null);
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error updating shipment:', err);
@@ -234,12 +298,27 @@ const Shipping = () => {
 
   const handleDeleteShipment = async (shipment: Shipment) => {
     try {
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlDeleteQuery = `DELETE FROM shipping WHERE shipping_id = '${shipment.shipping_id}'`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlDeleteQuery);
+      
+      // Delete the shipment from the database
+      const { error } = await supabase
+        .from('shipping')
+        .delete()
+        .eq('shipping_id', shipment.shipping_id);
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Shipment deleted successfully",
       });
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error deleting shipment:', err);

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SqlQueryViewer from "@/components/SqlQueryViewer";
@@ -45,7 +44,7 @@ interface Supplier {
   supplier_name: string;
   contact: string;
   address: string;
-  status: "active" | "inactive" | "pending";
+  status: "active" | "inactive" | "pending_review";
   created_at: string;
   updated_at: string;
 }
@@ -122,7 +121,7 @@ const Suppliers = () => {
   const handleStatusChange = (value: string) => {
     setNewSupplier({
       ...newSupplier,
-      status: value as "active" | "inactive" | "pending",
+      status: value as "active" | "inactive" | "pending_review",
     });
   };
 
@@ -131,7 +130,7 @@ const Suppliers = () => {
     
     setEditingSupplier({
       ...editingSupplier,
-      status: value as "active" | "inactive" | "pending",
+      status: value as "active" | "inactive" | "pending_review",
     });
   };
 
@@ -150,13 +149,39 @@ const Suppliers = () => {
     try {
       setIsSubmitting(true);
       
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlInsertQuery = `
+INSERT INTO suppliers (
+  supplier_name, contact, address, status
+) VALUES (
+  '${newSupplier.supplier_name}',
+  '${newSupplier.contact}',
+  '${newSupplier.address}',
+  '${newSupplier.status}'
+) RETURNING *`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlInsertQuery);
+      
+      // Add the supplier to the database
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert({
+          supplier_name: newSupplier.supplier_name,
+          contact: newSupplier.contact,
+          address: newSupplier.address,
+          status: newSupplier.status
+        })
+        .select();
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Supplier added successfully",
       });
       
+      // Close modal and reset form
       setShowAddModal(false);
       setNewSupplier({
         supplier_name: '',
@@ -164,6 +189,9 @@ const Suppliers = () => {
         address: '',
         status: 'active'
       });
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error adding supplier:', err);
@@ -194,15 +222,44 @@ const Suppliers = () => {
     try {
       setIsSubmitting(true);
       
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlUpdateQuery = `
+UPDATE suppliers
+SET supplier_name = '${editingSupplier.supplier_name}',
+    contact = '${editingSupplier.contact}',
+    address = '${editingSupplier.address}',
+    status = '${editingSupplier.status}'
+WHERE supplier_id = '${editingSupplier.supplier_id}'
+RETURNING *`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlUpdateQuery);
+      
+      // Update the supplier in the database
+      const { data, error } = await supabase
+        .from('suppliers')
+        .update({
+          supplier_name: editingSupplier.supplier_name,
+          contact: editingSupplier.contact,
+          address: editingSupplier.address,
+          status: editingSupplier.status
+        })
+        .eq('supplier_id', editingSupplier.supplier_id)
+        .select();
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Supplier updated successfully",
       });
       
+      // Close modal and reset form
       setShowEditModal(false);
       setEditingSupplier(null);
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error updating supplier:', err);
@@ -218,12 +275,27 @@ const Suppliers = () => {
 
   const handleDeleteSupplier = async (supplier: Supplier) => {
     try {
-      // This would typically involve a call to Supabase
-      // For now we'll just simulate the response
+      // Create SQL query for logging
+      const sqlDeleteQuery = `DELETE FROM suppliers WHERE supplier_id = '${supplier.supplier_id}'`;
+      
+      // Log the SQL query
+      setSqlQuery(sqlDeleteQuery);
+      
+      // Delete the supplier from the database
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('supplier_id', supplier.supplier_id);
+      
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Supplier deleted successfully",
       });
+      
+      // Refresh data
+      refetch();
       
     } catch (err: any) {
       console.error('Error deleting supplier:', err);
@@ -315,7 +387,7 @@ const Suppliers = () => {
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending_review">Pending Review</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -527,7 +599,7 @@ const Suppliers = () => {
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending_review">Pending Review</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

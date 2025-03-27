@@ -1,27 +1,19 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-
-interface UserSettings {
-  name: string;
-  email: string;
-  company: string;
-  role: string;
-}
-
-interface CompanySettings {
-  companyName: string;
-  website: string;
-  address: string;
-  phone: string;
-}
+import { UserSettings, CompanySettings } from "@/types/settings";
 
 export const useUserSettings = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
   // Save user account settings
-  const saveAccountSettings = async (settings: UserSettings) => {
+  const saveAccountSettings = async (settings: {
+    name: string;
+    email: string;
+    company: string;
+    role: string;
+  }) => {
     setIsLoading(true);
     try {
       // In a real application, you would update the user's profile in Supabase
@@ -59,13 +51,16 @@ export const useUserSettings = () => {
     setIsLoading(true);
     try {
       // In a real application, this would update a company profile table
-      // This is a simplified example
-      const { error } = await supabase.rpc('update_company_settings', {
-        company_name: settings.companyName,
-        company_website: settings.website,
-        company_address: settings.address,
-        company_phone: settings.phone,
-      });
+      // Since we can't use RPC that doesn't exist, let's use a regular update
+      const { error } = await supabase
+        .from('admins')  // Assuming we store company info in admins table
+        .update({
+          company_name: settings.companyName,
+          website: settings.website,
+          address: settings.address,
+          phone: settings.phone,
+        })
+        .eq('admin_id', 'current-user-id');
       
       if (error) throw error;
       
@@ -117,11 +112,21 @@ export const useUserSettings = () => {
   };
   
   // Toggle notification settings
-  const saveNotificationSettings = async (settings: Record<string, boolean>) => {
+  const saveNotificationSettings = async (settings: UserSettings['notifications']) => {
     setIsLoading(true);
     try {
       // In a real application, this would update a user preferences table
       console.log("Notification settings:", settings);
+      
+      // Simulating an update to user settings
+      const { error } = await supabase
+        .from('admins')
+        .update({
+          notification_preferences: settings
+        })
+        .eq('admin_id', 'current-user-id');
+      
+      if (error) throw error;
       
       toast({
         title: "Notification preferences saved",
@@ -146,6 +151,17 @@ export const useUserSettings = () => {
     try {
       // In a real application, this would update a user preferences table
       console.log("Appearance settings:", { theme, density });
+      
+      // Simulating an update to user settings
+      const { error } = await supabase
+        .from('admins')
+        .update({
+          theme_preference: theme,
+          density_preference: density
+        })
+        .eq('admin_id', 'current-user-id');
+      
+      if (error) throw error;
       
       toast({
         title: "Appearance settings saved",

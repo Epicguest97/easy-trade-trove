@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { useTheme } from "@/hooks/useTheme";
 
 const Settings = () => {
   const {
@@ -19,7 +19,8 @@ const Settings = () => {
     saveAppearanceSettings
   } = useUserSettings();
 
-  // Account form state
+  const { theme, setTheme } = useTheme();
+
   const [accountForm, setAccountForm] = useState({
     name: "John Doe",
     email: "john.doe@example.com",
@@ -27,7 +28,6 @@ const Settings = () => {
     role: "Administrator"
   });
 
-  // Company form state
   const [companyForm, setCompanyForm] = useState({
     companyName: "Acme Inc.",
     website: "https://acme.com",
@@ -35,14 +35,12 @@ const Settings = () => {
     phone: "+1 (555) 123-4567"
   });
 
-  // Password form state
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
 
-  // Notification preferences state
   const [notifications, setNotifications] = useState({
     emailSales: true,
     emailUpdates: false,
@@ -51,31 +49,26 @@ const Settings = () => {
     desktopAlerts: true,
   });
 
-  // Appearance settings state
   const [appearance, setAppearance] = useState({
     theme: "light",
     density: "default"
   });
 
-  // Handle account form input changes
   const handleAccountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setAccountForm(prev => ({ ...prev, [id]: value }));
   };
 
-  // Handle company form input changes
   const handleCompanyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setCompanyForm(prev => ({ ...prev, [id]: value }));
   };
 
-  // Handle password form input changes
   const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setPasswordForm(prev => ({ ...prev, [id]: value }));
   };
 
-  // Handle form submissions
   const handleAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     saveAccountSettings(accountForm);
@@ -105,12 +98,11 @@ const Settings = () => {
     saveAppearanceSettings(appearance.theme, appearance.density);
   };
 
-  // Handle theme selection
-  const handleThemeSelect = (theme: string) => {
-    setAppearance(prev => ({ ...prev, theme }));
+  const handleThemeSelect = (newTheme: string) => {
+    setAppearance(prev => ({ ...prev, theme: newTheme }));
+    setTheme(newTheme as "light" | "dark" | "system");
   };
 
-  // Handle density selection
   const handleDensitySelect = (density: string) => {
     setAppearance(prev => ({ ...prev, density }));
   };
@@ -444,7 +436,7 @@ const Settings = () => {
                   <h3 className="text-lg font-medium">Theme</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div 
-                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'light' ? 'ring-2 ring-primary' : ''}`}
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${theme === 'light' ? 'ring-2 ring-primary' : ''}`}
                       onClick={() => handleThemeSelect('light')}
                     >
                       <div className="space-y-2 text-center">
@@ -453,7 +445,7 @@ const Settings = () => {
                       </div>
                     </div>
                     <div 
-                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'dark' ? 'ring-2 ring-primary' : ''}`}
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${theme === 'dark' ? 'ring-2 ring-primary' : ''}`}
                       onClick={() => handleThemeSelect('dark')}
                     >
                       <div className="space-y-2 text-center">
@@ -462,7 +454,7 @@ const Settings = () => {
                       </div>
                     </div>
                     <div 
-                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${appearance.theme === 'system' ? 'ring-2 ring-primary' : ''}`}
+                      className={`border rounded-md p-3 cursor-pointer hover:bg-accent ${theme === 'system' ? 'ring-2 ring-primary' : ''}`}
                       onClick={() => handleThemeSelect('system')}
                     >
                       <div className="space-y-2 text-center">

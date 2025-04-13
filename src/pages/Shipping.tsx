@@ -52,7 +52,13 @@ interface Shipment {
 }
 
 const Shipping = () => {
-  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM shipping');
+  const [sqlQueries, setSqlQueries] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    query: string;
+    duration?: number;
+    source?: string;
+  }>>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -68,6 +74,19 @@ const Shipping = () => {
     estimated_delivery_date: ''
   });
 
+  const logQuery = (query: string, source: string) => {
+    setSqlQueries(prev => [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        query,
+        source,
+        duration: Math.floor(Math.random() * 50) + 5, // Mock duration
+      },
+      ...prev
+    ]);
+  };
+
   const { data: shipments, isLoading, error, refetch } = useQuery({
     queryKey: ["shipping"],
     queryFn: async () => {
@@ -78,7 +97,7 @@ const Shipping = () => {
       if (error) throw error;
       
       // Use static SQL string instead of non-existent toSql method
-      setSqlQuery('SELECT shipping.*, orders.order_id FROM shipping LEFT JOIN orders ON shipping.order_id = orders.order_id');
+      logQuery('SELECT shipping.*, orders.order_id FROM shipping LEFT JOIN orders ON shipping.order_id = orders.order_id', 'Fetch Shipments');
       
       return data as Shipment[];
     },
@@ -178,7 +197,7 @@ INSERT INTO shipping (
 ) RETURNING *`;
       
       // Log the SQL query
-      setSqlQuery(sqlInsertQuery);
+      logQuery(sqlInsertQuery, 'Add Shipment');
       
       // Add the shipment to the database
       const { data, error } = await supabase
@@ -255,7 +274,7 @@ WHERE shipping_id = '${editingShipment.shipping_id}'
 RETURNING *`;
       
       // Log the SQL query
-      setSqlQuery(sqlUpdateQuery);
+      logQuery(sqlUpdateQuery, 'Edit Shipment');
       
       // Update the shipment in the database
       const { data, error } = await supabase
@@ -302,7 +321,7 @@ RETURNING *`;
       const sqlDeleteQuery = `DELETE FROM shipping WHERE shipping_id = '${shipment.shipping_id}'`;
       
       // Log the SQL query
-      setSqlQuery(sqlDeleteQuery);
+      logQuery(sqlDeleteQuery, 'Delete Shipment');
       
       // Delete the shipment from the database
       const { error } = await supabase
@@ -562,10 +581,7 @@ RETURNING *`;
         </CardContent>
       </Card>
       
-      <div className="bg-card rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">SQL Query</h2>
-        <SqlQueryViewer query={sqlQuery} />
-      </div>
+      <SqlQueryViewer queries={sqlQueries} />
 
       {shipmentToDelete && (
         <Dialog open={!!shipmentToDelete} onOpenChange={() => setShipmentToDelete(null)}>

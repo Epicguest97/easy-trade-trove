@@ -50,7 +50,13 @@ interface Supplier {
 }
 
 const Suppliers = () => {
-  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM suppliers');
+  const [sqlQueries, setSqlQueries] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    query: string;
+    duration?: number;
+    source?: string;
+  }>>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -64,6 +70,19 @@ const Suppliers = () => {
     status: 'active'
   });
 
+  const logQuery = (query: string, source: string) => {
+    setSqlQueries(prev => [
+      {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        query,
+        source,
+        duration: Math.floor(Math.random() * 50) + 5, // Mock duration
+      },
+      ...prev
+    ]);
+  };
+
   const { data: suppliers, isLoading, error, refetch } = useQuery({
     queryKey: ["suppliers"],
     queryFn: async () => {
@@ -73,8 +92,8 @@ const Suppliers = () => {
 
       if (error) throw error;
       
-      // Use static SQL string instead of non-existent toSql method
-      setSqlQuery('SELECT * FROM suppliers');
+      // Log the query
+      logQuery('SELECT * FROM suppliers', 'Fetch Suppliers');
       
       return data as Supplier[];
     },
@@ -150,18 +169,14 @@ const Suppliers = () => {
       setIsSubmitting(true);
       
       // Create SQL query for logging
-      const sqlInsertQuery = `
-INSERT INTO suppliers (
-  supplier_name, contact, address, status
-) VALUES (
-  '${newSupplier.supplier_name}',
-  '${newSupplier.contact}',
-  '${newSupplier.address}',
-  '${newSupplier.status}'
-) RETURNING *`;
-      
-      // Log the SQL query
-      setSqlQuery(sqlInsertQuery);
+      logQuery(`INSERT INTO suppliers (
+        supplier_name, contact, address, status
+      ) VALUES (
+        '${newSupplier.supplier_name}',
+        '${newSupplier.contact}',
+        '${newSupplier.address}',
+        '${newSupplier.status}'
+      ) RETURNING *`, 'Add Supplier');
       
       // Add the supplier to the database
       const { data, error } = await supabase
@@ -223,17 +238,13 @@ INSERT INTO suppliers (
       setIsSubmitting(true);
       
       // Create SQL query for logging
-      const sqlUpdateQuery = `
-UPDATE suppliers
-SET supplier_name = '${editingSupplier.supplier_name}',
-    contact = '${editingSupplier.contact}',
-    address = '${editingSupplier.address}',
-    status = '${editingSupplier.status}'
-WHERE supplier_id = '${editingSupplier.supplier_id}'
-RETURNING *`;
-      
-      // Log the SQL query
-      setSqlQuery(sqlUpdateQuery);
+      logQuery(`UPDATE suppliers
+        SET supplier_name = '${editingSupplier.supplier_name}',
+            contact = '${editingSupplier.contact}',
+            address = '${editingSupplier.address}',
+            status = '${editingSupplier.status}'
+        WHERE supplier_id = '${editingSupplier.supplier_id}'
+        RETURNING *`, 'Edit Supplier');
       
       // Update the supplier in the database
       const { data, error } = await supabase
@@ -276,10 +287,8 @@ RETURNING *`;
   const handleDeleteSupplier = async (supplier: Supplier) => {
     try {
       // Create SQL query for logging
-      const sqlDeleteQuery = `DELETE FROM suppliers WHERE supplier_id = '${supplier.supplier_id}'`;
-      
-      // Log the SQL query
-      setSqlQuery(sqlDeleteQuery);
+      logQuery(`DELETE FROM suppliers 
+        WHERE supplier_id = '${supplier.supplier_id}'`, 'Delete Supplier');
       
       // Delete the supplier from the database
       const { error } = await supabase
@@ -503,10 +512,7 @@ RETURNING *`;
         </CardContent>
       </Card>
       
-      <div className="bg-card rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">SQL Query</h2>
-        <SqlQueryViewer query={sqlQuery} />
-      </div>
+      <SqlQueryViewer queries={sqlQueries} />
 
       {supplierToDelete && (
         <Dialog open={!!supplierToDelete} onOpenChange={() => setSupplierToDelete(null)}>

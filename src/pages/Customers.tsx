@@ -157,7 +157,7 @@ const Customers = () => {
       const formattedCustomers = (data || []).map(customer => {
         const [email, phone] = customer.contact?.split(', ') || ['', ''];
         return {
-          id: Number(customer.customer_id),
+          id: customer.customer_id,  // Keep as string, don't convert to Number
           name: customer.customer_name,
           email,
           phone,
@@ -228,7 +228,7 @@ const Customers = () => {
       const formattedNewCustomers = (data || []).map(customer => {
         const [email, phone] = customer.contact.split(', ');
         return {
-          id: Number(customer.customer_id),
+          id: customer.customer_id,  // Keep as string, don't convert to Number
           name: customer.customer_name,
           email,
           phone,
@@ -871,6 +871,18 @@ const Customers = () => {
                       <SelectItem value="Inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit_customer_id" className="text-right">
+                    Customer ID
+                  </Label>
+                  <Input
+                    id="edit_customer_id"
+                    name="id"
+                    value={editingCustomer.id}
+                    className="col-span-3 bg-muted"
+                    disabled
+                  />
                 </div>
               </div>
               <DialogFooter>

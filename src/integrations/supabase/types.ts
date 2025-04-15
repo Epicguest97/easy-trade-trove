@@ -82,22 +82,43 @@ export type Database = {
         Row: {
           created_at: string
           id: number
+          order_id: string | null
           price_at_purchase: number | null
+          product_sku: string | null
           quantity: number | null
         }
         Insert: {
           created_at?: string
           id?: number
+          order_id?: string | null
           price_at_purchase?: number | null
+          product_sku?: string | null
           quantity?: number | null
         }
         Update: {
           created_at?: string
           id?: number
+          order_id?: string | null
           price_at_purchase?: number | null
+          product_sku?: string | null
           quantity?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "order_details_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_details_product_sku_fkey"
+            columns: ["product_sku"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["sku"]
+          },
+        ]
       }
       orders: {
         Row: {

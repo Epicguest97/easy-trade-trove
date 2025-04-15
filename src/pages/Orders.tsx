@@ -36,6 +36,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import OrderDetailsForm from "@/components/orders/OrderDetailsForm";
 
 type OrderStatus = Database['public']['Enums']['order_status'];
 
@@ -52,7 +53,8 @@ const formSchema = z.object({
   customer_id: z.string().optional(),
   total_amount: z.number().min(0, "Amount must be a positive number"),
   status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const),
-  customer_name: z.string().optional()
+  product_sku: z.string(),
+  quantity: z.number().min(1, "Quantity must be at least 1"),
 });
 
 const Orders = () => {
@@ -71,6 +73,11 @@ const Orders = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [customers, setCustomers] = useState<{ customer_id: string, customer_name: string }[]>([]);
+  const [products, setProducts] = useState<Array<{
+    sku: string;
+    product_name: string;
+    price: number;
+  }>>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -113,6 +120,24 @@ const Orders = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('sku, product_name, price');
+      
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load products",
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -137,7 +162,6 @@ const Orders = () => {
 
       const { data, error } = await query;
       
-      // Build SQL query string for logging
       let sqlQuery = `SELECT orders.order_id, orders.customer_id, orders.order_date, 
         orders.total_amount, orders.status, customers.customer_name 
         FROM orders 
@@ -152,7 +176,6 @@ const Orders = () => {
         sqlQuery += ` (orders.order_id LIKE '%${searchQuery}%' OR customers.customer_name LIKE '%${searchQuery}%')`;
       }
 
-      // Log the query
       logQuery(sqlQuery, 'Fetch Orders');
 
       if (error) {
@@ -184,11 +207,12 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
     fetchCustomers();
+    fetchProducts();
   }, [statusFilter, searchQuery]);
 
   const handleCreateOrder = async (values: z.infer<typeof formSchema>) => {
-    logQuery(`INSERT INTO orders (customer_id, total_amount, status, order_date)
-VALUES (${values.customer_id ? `'${values.customer_id}'` : 'NULL'}, ${values.total_amount}, '${values.status}', '${new Date().toISOString()}')
+    logQuery(`INSERT INTO orders (customer_id, total_amount, status)
+VALUES (${values.customer_id ? `'${values.customer_id}'` : 'NULL'}, ${values.total_amount}, '${values.status}')
 RETURNING *`, 'Create Order');
     try {
       const { data, error } = await supabase
@@ -366,6 +390,7 @@ WHERE order_id = '${editingOrder.order_id}'`, 'Update Order');
                     </FormItem>
                   )}
                 />
+                <OrderDetailsForm products={products} form={form} />
                 <FormField
                   control={form.control}
                   name="total_amount"

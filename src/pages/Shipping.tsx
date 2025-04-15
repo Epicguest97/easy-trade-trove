@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import SqlQueryViewer from "@/components/SqlQueryViewer";
@@ -51,6 +52,15 @@ interface Shipment {
   updated_at: string;
 }
 
+interface Order {
+  order_id: string;
+  total_amount: number;
+  customer_id: string;
+  customer_name?: string;
+  status: string;
+  order_date: string;
+}
+
 const Shipping = () => {
   const [sqlQueries, setSqlQueries] = useState<Array<{
     id: string;
@@ -87,17 +97,36 @@ const Shipping = () => {
     ]);
   };
 
+  // Fetch orders for the dropdown
+  const { data: orders, isLoading: ordersLoading } = useQuery({
+    queryKey: ["orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_id, total_amount, customer_id, status, order_date, customers(customer_name)");
+
+      if (error) throw error;
+      
+      logQuery('SELECT order_id, total_amount, customer_id, status, order_date, customers.customer_name FROM orders LEFT JOIN customers ON orders.customer_id = customers.customer_id', 'Fetch Orders');
+      
+      // Transform the data to include the customer name directly
+      return data.map(order => ({
+        ...order,
+        customer_name: order.customers?.customer_name || 'Unknown Customer'
+      })) as Order[];
+    },
+  });
+
   const { data: shipments, isLoading, error, refetch } = useQuery({
     queryKey: ["shipping"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shipping")
-        .select("*, orders(order_id)");
+        .select("*, orders(order_id, total_amount, status)");
 
       if (error) throw error;
       
-      // Use static SQL string instead of non-existent toSql method
-      logQuery('SELECT shipping.*, orders.order_id FROM shipping LEFT JOIN orders ON shipping.order_id = orders.order_id', 'Fetch Shipments');
+      logQuery('SELECT shipping.*, orders.order_id, orders.total_amount, orders.status FROM shipping LEFT JOIN orders ON shipping.order_id = orders.order_id', 'Fetch Shipments');
       
       return data as Shipment[];
     },
@@ -156,6 +185,25 @@ const Shipping = () => {
       ...newShipment,
       status: value as "processing" | "shipped" | "delivered" | "cancelled" | "delayed",
     });
+  };
+
+  const handleOrderChange = (value: string) => {
+    setNewShipment({
+      ...newShipment,
+      order_id: value,
+    });
+    
+    // Auto-fill shipping address if we have order details
+    const selectedOrder = orders?.find(order => order.order_id === value);
+    if (selectedOrder) {
+      // In a real app, you might fetch the customer's address here
+      // For now, just setting a placeholder
+      setNewShipment(prev => ({
+        ...prev,
+        order_id: value,
+        shipping_address: prev.shipping_address || `Customer Address for ${selectedOrder.customer_name}`
+      }));
+    }
   };
 
   const handleEditStatusChange = (value: string) => {
@@ -390,15 +438,32 @@ RETURNING *`;
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="order_id" className="text-right">
-                    Order ID
+                    Order
                   </Label>
-                  <Input
-                    id="order_id"
-                    name="order_id"
+                  <Select
                     value={newShipment.order_id || ''}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
+                    onValueChange={handleOrderChange}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ordersLoading ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading orders...
+                        </div>
+                      ) : orders?.length ? (
+                        orders.map((order) => (
+                          <SelectItem key={order.order_id} value={order.order_id}>
+                            {order.order_id.slice(0, 8)} - {order.customer_name} (₹{order.total_amount})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-2 text-center text-sm">No orders found</div>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="courier_service" className="text-right">

@@ -1,4 +1,3 @@
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import Suppliers from "./pages/Suppliers";
 import Shipping from "./pages/Shipping";
+import CustomerOrder from "./pages/CustomerOrder";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +33,7 @@ const App = () => (
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/shipping" element={<Shipping />} />
+            <Route path="/place-order" element={<CustomerOrder />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

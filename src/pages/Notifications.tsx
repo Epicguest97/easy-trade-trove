@@ -1,5 +1,6 @@
-
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Card, 
   CardContent, 
@@ -84,6 +85,34 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Add activity logs query
+  const { data: activityLogs = [] } = useQuery({
+    queryKey: ['activity-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Convert activity logs to notifications format
+  const activityNotifications = activityLogs.map(log => ({
+    id: log.id,
+    title: `${log.action_type.toUpperCase()} ${log.table_name}`,
+    message: `Record ${log.record_id} was ${log.action_type}ed`,
+    type: log.action_type === 'delete' ? 'warning' : 'info',
+    date: new Date(log.created_at).toLocaleString(),
+    read: false,
+  }));
+
+  // Combine existing notifications with activity logs
+  const allNotifications = [...notifications, ...activityNotifications];
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex items-center justify-between mb-6">
@@ -105,8 +134,8 @@ const Notifications = () => {
         
         <TabsContent value="all">
           <div className="space-y-4 mt-4">
-            {notifications.length > 0 ? (
-              notifications.map((notification) => (
+            {allNotifications.length > 0 ? (
+              allNotifications.map((notification) => (
                 <NotificationItem 
                   key={notification.id} 
                   notification={notification}
@@ -120,8 +149,8 @@ const Notifications = () => {
         
         <TabsContent value="unread">
           <div className="space-y-4 mt-4">
-            {notifications.filter(n => !n.read).length > 0 ? (
-              notifications
+            {allNotifications.filter(n => !n.read).length > 0 ? (
+              allNotifications
                 .filter(n => !n.read)
                 .map((notification) => (
                   <NotificationItem 

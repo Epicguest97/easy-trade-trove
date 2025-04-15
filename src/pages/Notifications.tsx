@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -100,15 +101,26 @@ const Notifications = () => {
     },
   });
 
-  // Convert activity logs to notifications format
-  const activityNotifications = activityLogs.map(log => ({
-    id: log.id,
-    title: `${log.action_type.toUpperCase()} ${log.table_name}`,
-    message: `Record ${log.record_id} was ${log.action_type}ed`,
-    type: log.action_type === 'delete' ? 'warning' : 'info',
-    date: new Date(log.created_at).toLocaleString(),
-    read: false,
-  }));
+  // Convert activity logs to notifications format with proper type casting
+  const activityNotifications: Notification[] = activityLogs.map(log => {
+    // Map action_type to an appropriate notification type
+    let notificationType: "info" | "success" | "warning" = "info";
+    
+    if (log.action_type === 'delete') {
+      notificationType = "warning";
+    } else if (log.action_type === 'insert') {
+      notificationType = "success";
+    }
+    
+    return {
+      id: log.id,
+      title: `${log.action_type.toUpperCase()} ${log.table_name}`,
+      message: `Record ${log.record_id} was ${log.action_type}ed`,
+      type: notificationType,
+      date: new Date(log.created_at).toLocaleString(),
+      read: false,
+    };
+  });
 
   // Combine existing notifications with activity logs
   const allNotifications = [...notifications, ...activityNotifications];

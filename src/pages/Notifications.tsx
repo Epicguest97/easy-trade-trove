@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +30,7 @@ const mockNotifications: Notification[] = [
   {
     id: "1",
     title: "New order received",
-    message: "Order #1234 has been placed.",
+    message: "Order #1234 for Masala Chai set has been placed.",
     type: "info",
     date: "1 hour ago",
     read: false,
@@ -39,7 +38,7 @@ const mockNotifications: Notification[] = [
   {
     id: "2",
     title: "Payment successful",
-    message: "Payment for order #1233 has been processed.",
+    message: "Payment for Banarasi Saree order #1233 has been processed.",
     type: "success",
     date: "2 hours ago",
     read: false,
@@ -47,7 +46,7 @@ const mockNotifications: Notification[] = [
   {
     id: "3",
     title: "Low inventory alert",
-    message: "Product 'Wireless Headphones' is running low on stock.",
+    message: "Product 'Sandalwood Incense Sticks' is running low on stock.",
     type: "warning",
     date: "5 hours ago",
     read: true,
@@ -55,7 +54,7 @@ const mockNotifications: Notification[] = [
   {
     id: "4",
     title: "New feature available",
-    message: "Check out our new analytics dashboard!",
+    message: "Check out our new Diwali Collection analytics dashboard!",
     type: "info",
     date: "1 day ago",
     read: true,
@@ -86,7 +85,6 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Add activity logs query
   const { data: activityLogs = [] } = useQuery({
     queryKey: ['activity-logs'],
     queryFn: async () => {
@@ -101,9 +99,7 @@ const Notifications = () => {
     },
   });
 
-  // Convert activity logs to notifications format with proper type casting
   const activityNotifications: Notification[] = activityLogs.map(log => {
-    // Map action_type to an appropriate notification type
     let notificationType: "info" | "success" | "warning" = "info";
     
     if (log.action_type === 'delete') {
@@ -122,7 +118,6 @@ const Notifications = () => {
     };
   });
 
-  // Combine existing notifications with activity logs
   const allNotifications = [...notifications, ...activityNotifications];
 
   return (
